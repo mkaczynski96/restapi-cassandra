@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/acaisoft-mkaczynski-api.iml" filepath="$PROJECT_DIR$/acaisoft-mkaczynski-api.iml" />
+      <module fileurl="file://$PROJECT_DIR$/restapi-cassandra.iml" filepath="$PROJECT_DIR$/restapi-cassandra.iml" />
     </modules>
   </component>
 </project>
