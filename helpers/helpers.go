@@ -12,10 +12,10 @@ import (
 
 const (
 	messageExpirationSeconds = 300
-	usernameMail             = "test@example.com"
-	passwordMail             = "test123"
-	hostMail                 = "smtp.test.com"
-	portMail                 = "25"
+	usernameMail             = "user@mail.com"
+	passwordMail             = "passwordmail"
+	hostMail                 = "smtp.mail.mail.com"
+	portMail                 = "587"
 )
 
 func CreateSelectQuery(args map[string]interface{}) string {
@@ -80,11 +80,12 @@ func SendMail(email, title, content string) {
 	auth := smtp.PlainAuth("", usernameMail, passwordMail, hostMail)
 
 	to := []string{email}
-	msg := []byte("To: " + email + "\r\n" +
-		"Subject: " + title + "?\r\n" +
-		"\r\n" +
-		"" + content + "\r\n")
-	err := smtp.SendMail(hostMail+portMail, auth, usernameMail, to, msg)
+	msg := []byte("To: "+email+"\r\n" +
+		  		"Subject: "+title+"\r\n" +
+		 		"\r\n" +
+				""+content+"\r\n")
+	hostPort := hostMail+":"+portMail
+	err := smtp.SendMail(hostPort, auth, usernameMail, to, msg)
 	if err != nil {
 		log.Fatal(err)
 	}

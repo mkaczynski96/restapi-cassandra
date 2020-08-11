@@ -65,11 +65,10 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 	returnedMessages := helpers.GetMessagesFromSelect(query)
 	if returnedMessages != nil {
 		for _, message := range returnedMessages {
-			// There are mail sending - disabled due to the lack of smtp server :)
-			//	helpers.SendMail(message.Email, message.Title, message.Content)
 			_ = helpers.RemoveRecordFromDatabase(message)
+			helpers.SendMail(message.Email, message.Title, message.Content)
 		}
-		_ = json.NewEncoder(w).Encode("Done!")
+		_ = json.NewEncoder(w).Encode("200 OK")
 	}
 	return
 }
