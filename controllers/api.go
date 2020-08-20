@@ -1,12 +1,13 @@
 package controllers
 
 import (
-	"acaisoft-mkaczynski-api/helpers"
-	"acaisoft-mkaczynski-api/models"
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"restapi-cassandra/configs"
+	"restapi-cassandra/helpers"
+	"restapi-cassandra/models"
 )
 
 const (
@@ -15,14 +16,17 @@ const (
 	apiContentTypeValue = "application/json"
 )
 
-func RunApi() {
+var cfg configs.Config
+
+func RunApi(config configs.Config) {
+	cfg = config
 	muxRouter := mux.NewRouter()
 	muxRouter.HandleFunc(apiPath+"/messages/{emailValue}", getMessages).Methods("GET")
 	muxRouter.HandleFunc(apiPath+"/message", createMessage).Methods("POST")
 	muxRouter.HandleFunc(apiPath+"/send", sendMessage).Methods("POST")
 
-	log.Printf("API runs on port 8080!")
-	log.Fatal(http.ListenAndServe(":8080", muxRouter))
+	log.Printf("Api runs on port %v", config.Api.Port)
+	log.Fatal(http.ListenAndServe(config.Api.Port, muxRouter))
 }
 
 func getMessages(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +38,7 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	args := make(map[string]interface{})
 	args["email"] = emailParameter
 
-	query := helpers.CreateSelectQuery(args)
+	query := helpers.CreateSelectQuery(cfg, args)
 	if messages := helpers.GetMessagesFromSelect(query); messages != nil {
 		_ = json.NewEncoder(w).Encode(messages)
 	}
@@ -46,7 +50,7 @@ func createMessage(w http.ResponseWriter, r *http.Request) {
 
 	var newMessage models.EmailMessage
 	_ = json.NewDecoder(r.Body).Decode(&newMessage)
-	if err := helpers.AddRecordToDatabase(newMessage); err != nil {
+	if err := helpers.AddRecordToDatabase(cfg, newMessage); err != nil {
 		_ = json.NewEncoder(w).Encode(err)
 	}
 	_ = json.NewEncoder(w).Encode("200 OK")
@@ -61,12 +65,12 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 	args := make(map[string]interface{})
 	args["magic_number"] = message.MagicNumber
 
-	query := helpers.CreateSelectQuery(args)
+	query := helpers.CreateSelectQuery(cfg, args)
 	returnedMessages := helpers.GetMessagesFromSelect(query)
 	if returnedMessages != nil {
 		for _, message := range returnedMessages {
-			_ = helpers.RemoveRecordFromDatabase(message)
-			helpers.SendMail(message.Email, message.Title, message.Content)
+			_ = helpers.RemoveRecordFromDatabase(cfg, message)
+			helpers.SendMail(cfg,message.Email, message.Title, message.Content)
 		}
 		_ = json.NewEncoder(w).Encode("200 OK")
 	}

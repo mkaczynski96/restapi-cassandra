@@ -1,11 +1,18 @@
 package main
 
 import (
-	"acaisoft-mkaczynski-api/configs"
-	"acaisoft-mkaczynski-api/controllers"
+	"log"
+	"restapi-cassandra/configs"
+	"restapi-cassandra/controllers"
 )
 
+var cfg configs.Config
+
 func main() {
-	configs.SetupDBConnection()
-	controllers.RunApi()
+	config := cfg.LoadConfig()
+	err := configs.BuildSession(config, []string{config.Database.Address})
+	if err != nil {
+		log.Fatal(err)
+	}
+	controllers.RunApi(config)
 }

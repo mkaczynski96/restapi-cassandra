@@ -1,60 +1,62 @@
 package configs
 
 import (
-	"github.com/gocql/gocql"
+	"fmt"
+	"github.com/kelseyhightower/envconfig"
+	"gopkg.in/yaml.v2"
 	"log"
+	"os"
 )
 
-const (
-	Keyspace  = "messages"
-	TableName = "messages"
-)
-
-type DBConnection struct {
-	cluster *gocql.ClusterConfig
-	session *gocql.Session
+type Config struct {
+	Api struct {
+		Port string `yaml:"port" ,envconfig:"API_PORT"`
+	} `yaml:"api"`
+	Database struct {
+		Address      string `yaml:"address" ,envconfig:"DB_ADDRESS"`
+		Port         int    `yaml:"port" ,envconfig:"DB_PORT"`
+		ProtoVersion int    `yaml:"protoVersion" ,envconfig:"DB_PROTOVERSION"`
+		Keyspace     string `yaml:"keyspace" ,envconfig:"DB_KEYSPACE"`
+		TableName    string `yaml:"tableName" ,envconfig:"DB_TABLENAME"`
+	} `yaml:"database"`
+	Mail struct {
+		MessageExpirationSeconds int    `yaml:"messageExpirationSeconds" ,envconfig:"MAIL_MESSAGEEXPIRATIONSECONDS"`
+		Username                 string `yaml:"username" ,envconfig:"MAIL_USERNAME"`
+		Password                 string `yaml:"password" ,envconfig:"MAIL_PASSWORD"`
+		Host                     string `yaml:"host" ,envconfig:"MAIL_HOST"`
+		Port                     int    `yaml:"port" ,envconfig:"MAIL_PORT"`
+	} `yaml:"mail"`
 }
 
-var connection DBConnection
-
-func SetupDBConnection() {
-	connection.cluster = gocql.NewCluster("172.17.0.2")
-	connection.cluster.Port = 9042
-	connection.cluster.ProtoVersion = 4
-	connection.cluster.Consistency = gocql.Quorum
-
-	connection.session, _ = connection.cluster.CreateSession()
-	connection.setupKeyspace()
-	connection.setupTable()
+func (cfg Config) LoadConfig() Config {
+	ReadFile(&cfg)
+	ReadEnv(&cfg)
+	log.Printf("Config: %+v", cfg)
+	return cfg
 }
 
-func (connection *DBConnection) setupKeyspace() {
-	query := "CREATE KEYSPACE IF NOT EXISTS " + Keyspace + " WITH replication = {'class' : 'SimpleStrategy', 'replication_factor' : 1};"
-	err := connection.session.Query(query).Exec()
+func processError(err error) {
+	fmt.Println(err)
+	os.Exit(2)
+}
+
+func ReadFile(cfg *Config) {
+	f, err := os.Open("./configs/config.yml")
 	if err != nil {
-		log.Println(err)
-		return
+		processError(err)
 	}
-}
+	defer f.Close()
 
-func (connection *DBConnection) setupTable() {
-	query := "CREATE TABLE IF NOT EXISTS " + Keyspace + "." + TableName + " (email text, title text, content text, magic_number int, PRIMARY KEY (email, magic_number));"
-	err := connection.session.Query(query).Exec()
+	decoder := yaml.NewDecoder(f)
+	err = decoder.Decode(cfg)
 	if err != nil {
-		log.Println(err)
-		return
+		processError(err)
 	}
 }
 
-func ExecuteQuery(query string, values ...interface{}) error {
-	if err := connection.session.Query(query).Bind(values...).Exec(); err != nil {
-		log.Fatal(err)
-		return err
+func ReadEnv(cfg *Config) {
+	err := envconfig.Process("", cfg)
+	if err != nil {
+		processError(err)
 	}
-	return nil
-}
-
-func ExecuteSelectQuery(query string) *gocql.Iter {
-	iter := connection.session.Query(query).Iter()
-	return iter
 }

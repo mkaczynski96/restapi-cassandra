@@ -1,0 +1,14 @@
+api:
+  port: 8080
+database:
+  address: "172.17.0.2"
+  port: 9042
+  protoVersion: 4
+  keyspace: "messages"
+  tableName: "messages"
+mail:
+  messageExpirationSeconds: 300
+  username: "user@mail.com"
+  password:  "passwordmail"
+  host: "smtp.mail.mail.com"
+  port: 587

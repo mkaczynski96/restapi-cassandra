@@ -1,27 +1,20 @@
 package helpers
 
 import (
-	"acaisoft-mkaczynski-api/configs"
-	"acaisoft-mkaczynski-api/models"
 	"bytes"
 	"fmt"
 	"log"
 	"net/smtp"
 	"reflect"
+	"restapi-cassandra/configs"
+	"restapi-cassandra/models"
+	"strconv"
 )
 
-const (
-	messageExpirationSeconds = 300
-	usernameMail             = "user@mail.com"
-	passwordMail             = "passwordmail"
-	hostMail                 = "smtp.mail.mail.com"
-	portMail                 = "587"
-)
-
-func CreateSelectQuery(args map[string]interface{}) string {
+func CreateSelectQuery(config configs.Config, args map[string]interface{}) string {
 	var buffer bytes.Buffer
 
-	buffer.WriteString("SELECT * FROM " + configs.Keyspace + "." + configs.TableName)
+	buffer.WriteString("SELECT * FROM " + config.Database.Keyspace + "." + config.Database.TableName)
 	if args != nil {
 		buffer.WriteString(" WHERE ")
 	}
@@ -60,32 +53,32 @@ func GetMessagesFromSelect(query string) []models.EmailMessage {
 	return messages
 }
 
-func AddRecordToDatabase(message models.EmailMessage) error {
-	query := fmt.Sprintf("INSERT INTO %s.%s(email, title, content, magic_number) VALUES ('%s', '%s', '%s', %v) USING TTL %v;", configs.Keyspace, configs.TableName, message.Email, message.Title, message.Content, message.MagicNumber, messageExpirationSeconds)
+func AddRecordToDatabase(config configs.Config, message models.EmailMessage) error {
+	query := `INSERT INTO ` + config.Database.Keyspace + `.` + config.Database.TableName + `(email, title, content, magic_number) VALUES ('` + message.Email + `', '` + message.Title + `', '` + message.Content + `', ` + strconv.Itoa(message.MagicNumber) + `) USING TTL ` + strconv.Itoa(config.Mail.MessageExpirationSeconds) + `;`
 	if err := configs.ExecuteQuery(query); err != nil {
 		return err
 	}
 	return nil
 }
 
-func RemoveRecordFromDatabase(message models.EmailMessage) error {
-	query := fmt.Sprintf("DELETE FROM %s.%s WHERE email='%s' AND magic_number=%v;", configs.Keyspace, configs.TableName, message.Email, message.MagicNumber)
+func RemoveRecordFromDatabase(config configs.Config, message models.EmailMessage) error {
+	query := `DELETE FROM ` + config.Database.Keyspace + `.` + config.Database.TableName + ` WHERE email='` + message.Email + `' AND magic_number=` + strconv.Itoa(message.MagicNumber) + `;`
 	if err := configs.ExecuteQuery(query); err != nil {
 		return err
 	}
 	return nil
 }
 
-func SendMail(email, title, content string) {
-	auth := smtp.PlainAuth("", usernameMail, passwordMail, hostMail)
+func SendMail(config configs.Config, email, title, content string) {
+	auth := smtp.PlainAuth("", config.Mail.Username, config.Mail.Password, config.Mail.Host)
 
 	to := []string{email}
-	msg := []byte("To: "+email+"\r\n" +
-		  		"Subject: "+title+"\r\n" +
-		 		"\r\n" +
-				""+content+"\r\n")
-	hostPort := hostMail+":"+portMail
-	err := smtp.SendMail(hostPort, auth, usernameMail, to, msg)
+	msg := []byte("To: " + email + "\r\n" +
+		"Subject: " + title + "\r\n" +
+		"\r\n" +
+		"" + content + "\r\n")
+	hostPort := config.Mail.Host + ":" + strconv.Itoa(config.Mail.Port)
+	err := smtp.SendMail(hostPort, auth, config.Mail.Username, to, msg)
 	if err != nil {
 		log.Fatal(err)
 	}
