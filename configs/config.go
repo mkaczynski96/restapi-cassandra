@@ -29,8 +29,8 @@ type Config struct {
 }
 
 func (cfg Config) LoadConfig() Config {
-	ReadFile(&cfg)
-	ReadEnv(&cfg)
+	readFile(&cfg)
+	readEnv(&cfg)
 	log.Printf("Config: %+v", cfg)
 	return cfg
 }
@@ -40,7 +40,7 @@ func processError(err error) {
 	os.Exit(2)
 }
 
-func ReadFile(cfg *Config) {
+func readFile(cfg *Config) {
 	f, err := os.Open("./configs/config.yml")
 	if err != nil {
 		processError(err)
@@ -54,7 +54,7 @@ func ReadFile(cfg *Config) {
 	}
 }
 
-func ReadEnv(cfg *Config) {
+func readEnv(cfg *Config) {
 	err := envconfig.Process("", cfg)
 	if err != nil {
 		processError(err)

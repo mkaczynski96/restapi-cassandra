@@ -11,21 +11,20 @@ type DBConnection struct {
 	session *gocql.Session
 }
 
-var connection DBConnection
-
-func BuildSession(config Config, points []string) error {
-	connection.cluster = gocql.NewCluster(points...)
-	connection.cluster.Port = config.Database.Port
-	connection.cluster.ProtoVersion = config.Database.ProtoVersion
-	connection.cluster.Consistency = gocql.Quorum
-	session, err := connection.cluster.CreateSession()
+func BuildSession(config Config, points []string) (*DBConnection, error) {
+	db := DBConnection{}
+	db.cluster = gocql.NewCluster(points...)
+	db.cluster.Port = config.Database.Port
+	db.cluster.ProtoVersion = config.Database.ProtoVersion
+	db.cluster.Consistency = gocql.Quorum
+	session, err := db.cluster.CreateSession()
 	if err != nil {
-		return fmt.Errorf(" Unable to initialize Cassandra session: %v ", err)
+		return nil, fmt.Errorf(" Unable to initialize Cassandra session: %v ", err)
 	}
-	connection.session = session
-	connection.setupKeyspace(config)
-	connection.setupTable(config)
-	return nil
+	db.session = session
+	db.setupKeyspace(config)
+	db.setupTable(config)
+	return &db, nil
 }
 
 func (connection *DBConnection) setupKeyspace(config Config) {
@@ -46,7 +45,7 @@ func (connection *DBConnection) setupTable(config Config) {
 	}
 }
 
-func ExecuteQuery(query string, values ...interface{}) error {
+func (connection *DBConnection) ExecuteQuery(query string, values ...interface{}) error {
 	if err := connection.session.Query(query).Bind(values...).Exec(); err != nil {
 		log.Fatal(err)
 		return err
@@ -54,7 +53,7 @@ func ExecuteQuery(query string, values ...interface{}) error {
 	return nil
 }
 
-func ExecuteSelectQuery(query string) *gocql.Iter {
+func (connection *DBConnection) ExecuteSelectQuery(query string) *gocql.Iter {
 	iter := connection.session.Query(query).Iter()
 	return iter
 }

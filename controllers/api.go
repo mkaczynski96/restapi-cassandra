@@ -16,20 +16,28 @@ const (
 	apiContentTypeValue = "application/json"
 )
 
+type Database struct {
+	connection *configs.DBConnection
+}
+
 var cfg configs.Config
 
-func RunApi(config configs.Config) {
+func RunApi(config configs.Config, connection *configs.DBConnection) {
 	cfg = config
+	conn := &Database{
+		connection: connection,
+	}
 	muxRouter := mux.NewRouter()
-	muxRouter.HandleFunc(apiPath+"/messages/{emailValue}", getMessages).Methods("GET")
-	muxRouter.HandleFunc(apiPath+"/message", createMessage).Methods("POST")
-	muxRouter.HandleFunc(apiPath+"/send", sendMessage).Methods("POST")
+	muxRouter.HandleFunc(apiPath+"/messages/{emailValue}", conn.getMessages).Methods("GET")
+	muxRouter.HandleFunc(apiPath+"/message", conn.addMessage).Methods("POST")
+	muxRouter.HandleFunc(apiPath+"/send", conn.sendMessage).Methods("POST")
 
 	log.Printf("Api runs on port %v", config.Api.Port)
 	log.Fatal(http.ListenAndServe(config.Api.Port, muxRouter))
 }
 
-func getMessages(w http.ResponseWriter, r *http.Request) {
+// Get message by email value
+func (connection Database) getMessages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(apiContentTypeKey, apiContentTypeValue)
 
 	params := mux.Vars(r)
@@ -39,24 +47,26 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	args["email"] = emailParameter
 
 	query := helpers.CreateSelectQuery(cfg, args)
-	if messages := helpers.GetMessagesFromSelect(query); messages != nil {
+	if messages := helpers.ExtractMessagesFromSelectResponse(connection.connection, query); messages != nil {
 		_ = json.NewEncoder(w).Encode(messages)
 	}
 	return
 }
 
-func createMessage(w http.ResponseWriter, r *http.Request) {
+// Add new message
+func (connection Database) addMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(apiContentTypeKey, apiContentTypeValue)
 
 	var newMessage models.EmailMessage
 	_ = json.NewDecoder(r.Body).Decode(&newMessage)
-	if err := helpers.AddRecordToDatabase(cfg, newMessage); err != nil {
+	if err := helpers.AddRecordToDatabase(connection.connection, cfg, newMessage); err != nil {
 		_ = json.NewEncoder(w).Encode(err)
 	}
 	_ = json.NewEncoder(w).Encode("200 OK")
 }
 
-func sendMessage(w http.ResponseWriter, r *http.Request) {
+// Send email and remove message from db
+func (connection Database) sendMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(apiContentTypeKey, apiContentTypeValue)
 
 	var message models.EmailMessage
@@ -66,11 +76,14 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 	args["magic_number"] = message.MagicNumber
 
 	query := helpers.CreateSelectQuery(cfg, args)
-	returnedMessages := helpers.GetMessagesFromSelect(query)
+	returnedMessages := helpers.ExtractMessagesFromSelectResponse(connection.connection, query)
 	if returnedMessages != nil {
 		for _, message := range returnedMessages {
-			_ = helpers.RemoveRecordFromDatabase(cfg, message)
-			helpers.SendMail(cfg,message.Email, message.Title, message.Content)
+			errSend := helpers.SendMail(cfg, message.Email, message.Title, message.Content)
+			if errSend != nil {
+				log.Fatal(errSend)
+			}
+			_ = helpers.RemoveRecordFromDatabase(connection.connection, cfg, message)
 		}
 		_ = json.NewEncoder(w).Encode("200 OK")
 	}

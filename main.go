@@ -10,9 +10,9 @@ var cfg configs.Config
 
 func main() {
 	config := cfg.LoadConfig()
-	err := configs.BuildSession(config, []string{config.Database.Address})
+	connection, err := configs.BuildSession(config, []string{config.Database.Address})
 	if err != nil {
 		log.Fatal(err)
 	}
-	controllers.RunApi(config)
+	controllers.RunApi(config, connection)
 }
