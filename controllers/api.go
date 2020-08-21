@@ -48,7 +48,11 @@ func (connection Database) getMessages(w http.ResponseWriter, r *http.Request) {
 
 	query := helpers.CreateSelectQuery(cfg, args)
 	if messages := helpers.ExtractMessagesFromSelectResponse(connection.connection, query); messages != nil {
-		_ = json.NewEncoder(w).Encode(messages)
+		errEncode := json.NewEncoder(w).Encode(messages)
+		if errEncode != nil {
+			log.Fatal(errEncode)
+			return
+		}
 	}
 	return
 }
@@ -62,7 +66,11 @@ func (connection Database) addMessage(w http.ResponseWriter, r *http.Request) {
 	if err := helpers.AddRecordToDatabase(connection.connection, cfg, newMessage); err != nil {
 		_ = json.NewEncoder(w).Encode(err)
 	}
-	_ = json.NewEncoder(w).Encode("200 OK")
+	errEncode := json.NewEncoder(w).Encode("200 OK")
+	if errEncode != nil {
+		log.Fatal(errEncode)
+		return
+	}
 }
 
 // Send email and remove message from db
@@ -85,7 +93,11 @@ func (connection Database) sendMessage(w http.ResponseWriter, r *http.Request) {
 			}
 			_ = helpers.RemoveRecordFromDatabase(connection.connection, cfg, message)
 		}
-		_ = json.NewEncoder(w).Encode("200 OK")
+		errEncode := json.NewEncoder(w).Encode("200 OK")
+		if errEncode != nil {
+			log.Fatal(errEncode)
+			return
+		}
 	}
 	return
 }

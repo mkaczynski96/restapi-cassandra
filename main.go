@@ -10,7 +10,7 @@ var cfg configs.Config
 
 func main() {
 	config := cfg.LoadConfig()
-	connection, err := configs.BuildSession(config, []string{config.Database.Address})
+	connection, err := configs.BuildSession(config)
 	if err != nil {
 		log.Fatal(err)
 	}

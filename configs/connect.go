@@ -11,9 +11,9 @@ type DBConnection struct {
 	session *gocql.Session
 }
 
-func BuildSession(config Config, points []string) (*DBConnection, error) {
+func BuildSession(config Config) (*DBConnection, error) {
 	db := DBConnection{}
-	db.cluster = gocql.NewCluster(points...)
+	db.cluster = gocql.NewCluster(config.Database.Address)
 	db.cluster.Port = config.Database.Port
 	db.cluster.ProtoVersion = config.Database.ProtoVersion
 	db.cluster.Consistency = gocql.Quorum
