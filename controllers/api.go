@@ -16,16 +16,15 @@ const (
 	apiContentTypeValue = "application/json"
 )
 
-type Database struct {
+type Api struct {
 	connection *configs.DBConnection
+	config     configs.Config
 }
 
-var cfg configs.Config
-
 func RunApi(config configs.Config, connection *configs.DBConnection) {
-	cfg = config
-	conn := &Database{
+	conn := &Api{
 		connection: connection,
+		config:     config,
 	}
 	muxRouter := mux.NewRouter()
 	muxRouter.HandleFunc(apiPath+"/messages/{emailValue}", conn.getMessages).Methods("GET")
@@ -37,7 +36,7 @@ func RunApi(config configs.Config, connection *configs.DBConnection) {
 }
 
 // Get message by email value
-func (connection Database) getMessages(w http.ResponseWriter, r *http.Request) {
+func (api Api) getMessages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(apiContentTypeKey, apiContentTypeValue)
 
 	params := mux.Vars(r)
@@ -46,8 +45,8 @@ func (connection Database) getMessages(w http.ResponseWriter, r *http.Request) {
 	args := make(map[string]interface{})
 	args["email"] = emailParameter
 
-	query := helpers.CreateSelectQuery(cfg, args)
-	if messages := helpers.ExtractMessagesFromSelectResponse(connection.connection, query); messages != nil {
+	query := helpers.CreateSelectQuery(api.config, args)
+	if messages := helpers.ExtractMessagesFromSelectResponse(api.connection, query); messages != nil {
 		errEncode := json.NewEncoder(w).Encode(messages)
 		if errEncode != nil {
 			log.Fatal(errEncode)
@@ -58,12 +57,12 @@ func (connection Database) getMessages(w http.ResponseWriter, r *http.Request) {
 }
 
 // Add new message
-func (connection Database) addMessage(w http.ResponseWriter, r *http.Request) {
+func (api Api) addMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(apiContentTypeKey, apiContentTypeValue)
 
 	var newMessage models.EmailMessage
 	_ = json.NewDecoder(r.Body).Decode(&newMessage)
-	if err := helpers.AddRecordToDatabase(connection.connection, cfg, newMessage); err != nil {
+	if err := helpers.AddRecordToDatabase(api.connection, api.config, newMessage); err != nil {
 		_ = json.NewEncoder(w).Encode(err)
 	}
 	errEncode := json.NewEncoder(w).Encode("200 OK")
@@ -74,7 +73,7 @@ func (connection Database) addMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 // Send email and remove message from db
-func (connection Database) sendMessage(w http.ResponseWriter, r *http.Request) {
+func (api Api) sendMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(apiContentTypeKey, apiContentTypeValue)
 
 	var message models.EmailMessage
@@ -83,15 +82,15 @@ func (connection Database) sendMessage(w http.ResponseWriter, r *http.Request) {
 	args := make(map[string]interface{})
 	args["magic_number"] = message.MagicNumber
 
-	query := helpers.CreateSelectQuery(cfg, args)
-	returnedMessages := helpers.ExtractMessagesFromSelectResponse(connection.connection, query)
+	query := helpers.CreateSelectQuery(api.config, args)
+	returnedMessages := helpers.ExtractMessagesFromSelectResponse(api.connection, query)
 	if returnedMessages != nil {
 		for _, message := range returnedMessages {
-			errSend := helpers.SendMail(cfg, message.Email, message.Title, message.Content)
+			errSend := helpers.SendMail(api.config, message.Email, message.Title, message.Content)
 			if errSend != nil {
 				log.Fatal(errSend)
 			}
-			_ = helpers.RemoveRecordFromDatabase(connection.connection, cfg, message)
+			_ = helpers.RemoveRecordFromDatabase(api.connection, api.config, message)
 		}
 		errEncode := json.NewEncoder(w).Encode("200 OK")
 		if errEncode != nil {
