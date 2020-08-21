@@ -6,13 +6,11 @@ import (
 	"restapi-cassandra/controllers"
 )
 
-var cfg configs.Config
-
 func main() {
-	config := cfg.LoadConfig()
+	config := configs.LoadConfig()
 	connection, err := configs.BuildSession(config)
 	if err != nil {
 		log.Fatal(err)
 	}
-	controllers.RunApi(config, connection)
+	controllers.NewApi(config, connection)
 }

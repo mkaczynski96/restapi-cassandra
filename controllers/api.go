@@ -21,7 +21,7 @@ type Api struct {
 	config     configs.Config
 }
 
-func RunApi(config configs.Config, connection *configs.DBConnection) {
+func NewApi(config configs.Config, connection *configs.DBConnection) {
 	conn := &Api{
 		connection: connection,
 		config:     config,

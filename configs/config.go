@@ -28,7 +28,8 @@ type Config struct {
 	} `yaml:"mail"`
 }
 
-func (cfg Config) LoadConfig() Config {
+func LoadConfig() Config {
+	cfg := Config{}
 	readFile(&cfg)
 	readEnv(&cfg)
 	log.Printf("Config: %+v", cfg)
